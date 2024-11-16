@@ -7,6 +7,7 @@ This repository contains five Go-based projects:
 - **Project3**: CRUD API for a bookstore with MySQL.
 - **Project4**: CRUD API for people with MongoDB.
 - **Project5**: GraphQL CRUD API for job listings.
+- **Project6**: SuperMarket Store Backend.
 
 
 ## Project1
@@ -61,4 +62,4 @@ cd Project6
 go run main.go
 ```
 SuperMarket Backend: http://localhost:8080/
-PSOT /register, POST /login, GET /getproduct, POST cart/checkout ...
+POST /register, POST /login, GET /getproduct, POST cart/checkout ...
