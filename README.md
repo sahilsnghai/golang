@@ -52,3 +52,13 @@ cd Project5
 go run main.go
 ```
 GraphQL Playground: http://localhost:8080
+
+
+## Project6
+```bash
+Copy code
+cd Project6
+go run main.go
+```
+SuperMarket Backend: http://localhost:8080/
+PSOT /register, POST /login, GET /getproduct, POST cart/checkout ...
