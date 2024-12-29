@@ -63,3 +63,22 @@ go run main.go
 ```
 SuperMarket Backend: http://localhost:8080/
 POST /register, POST /login, GET /getproduct, POST cart/checkout ...
+
+
+## Project7
+```bash
+Copy code
+cd Project7
+go run cmd/student-api/main.go
+```
+Student-API Backend: http://localhost:8080/
+POST /api/students, GET /api/students/{id}, GET /api/students
+
+
+## Project10
+```bash
+Copy code
+cd Project10
+go run . -commands
+```
+go run .|-add "Item" | -edit "id:'Updated Item'" |-toggle id | -del id
