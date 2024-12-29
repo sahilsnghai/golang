@@ -8,6 +8,8 @@ This repository contains five Go-based projects:
 - **Project4**: CRUD API for people with MongoDB.
 - **Project5**: GraphQL CRUD API for job listings.
 - **Project6**: SuperMarket Store Backend.
+- **Project7**: Student Backend API with SQLite.
+- **Project6**: Handy TODO Application.
 
 
 ## Project1
