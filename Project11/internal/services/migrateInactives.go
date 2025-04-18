@@ -27,6 +27,10 @@ func (s *Storage) MigrateInactive(data map[string]interface{}) (any, error) {
 
 	inactives, err := GetFromRows(rows)
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrive rows for Inactive: %w", err)
+	}
+
 	inactiveSlice := make([]string, 0, len(inactives))
 	for _, item := range inactives {
 		inactiveSlice = append(inactiveSlice, item["column_alias"].(string))

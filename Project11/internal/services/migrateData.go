@@ -6,8 +6,6 @@ import (
 	"log"
 	"sync"
 	"time"
-
-	"github.com/redis/go-redis/v9"
 )
 
 type MappingEntry struct {
@@ -15,48 +13,57 @@ type MappingEntry struct {
 	Params  []string
 }
 
-func (s Storage) Migration(data map[string]interface{}, client *redis.Client) (map[string]interface{}, error) {
-
+func (s Storage) Migration(data map[string]interface{}) (map[string]interface{}, error) {
+	log.Println("migration")
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	s.Ctx = context.Background()
-	s.Client = client
+	var _metadata map[string]interface{}
 
-	ex1, err1 := client.Exists(s.Ctx, "askme_keywords").Result()
-	ex2, err2 := client.Exists(s.Ctx, "askme_keyword_synonyms").Result()
+	ex1, err1 := s.Client.Exists(s.Ctx, "askme_keywords").Result()
+	ex2, err2 := s.Client.Exists(s.Ctx, "askme_keyword_synonyms").Result()
 	if (ex1 == 0 || err1 != nil) || (ex2 == 0 || err2 != nil) {
 		log.Printf("Either 'askme_keywords' or 'askme_keyword_synonyms' does not exist, or there was an error. %v , %v", ex1, ex2)
-		s.refreshCahe(&wg)
+		go s.refreshCahe(&wg)
 	}
 
+	// filter-refresh true
 	if filtersRef, ok := data["filter-refresh"].(bool); ok && filtersRef {
-		log.Printf("filter refresh are True")
+		log.Printf("Calling filter refresh")
+		s.FilterRefresh(data)
 	}
 	log.Printf("Request data from for migration: %+v\n", data)
 
-	_metadata, err := s.Migrate(data)
-	if err != nil {
-		log.Println("error while migration ", err.Error())
-		return nil, err
+	// migrate-metadata true
+	if migrateMetadata, ok := data["migrate-metadata"].(bool); ok && migrateMetadata {
+		log.Printf("Calling MIgrate Metadata")
+
+		var err error
+		_metadata, err = s.Migrate(data, &wg)
+		if err != nil {
+			log.Printf("error while migration: %v ", err.Error())
+			return nil, err
+		}
 	}
+
 	return _metadata, nil
 }
 
-func (s *Storage) Migrate(data map[string]interface{}) (map[string]interface{}, error) {
+func (s *Storage) Migrate(data map[string]interface{}, wg *sync.WaitGroup) (map[string]interface{}, error) {
 
 	log.Printf("starting migration")
 	domainIDStr := fmt.Sprintf("%0.f", data["domainId"])
 
 	mappings := map[string]MappingEntry{
-		"basic_joins":       {s.MigrateJoins, []string{"domain_id", "hash"}},     // Done implementation
-		"words_suggestions": {s.MigrateWords, []string{"domain_id", "hash"}},     // Done implementation
-		"credentials":       {s.MigrateCreds, []string{"domain_id", "hash"}},     // Done implementation
-		"inactive":          {s.MigrateInactive, []string{"domain_id", "hash"}},  // Done implementation
-		"metadata":          {s.MigrateMetadata, []string{"domain_id", "hash"}},  // Done implementation
-		"synonyms":          {s.MigrateSynonyms, []string{"domain_id", "hash"}},  // Done implementation
-		"hierarchy":         {s.MigrateHierarchy, []string{"domain_id", "hash"}}, // Done implementation
-		"shortcuts":         {s.MigrateShortCuts, []string{"domain_id", "hash"}}, // Done implementation
-		"aDD":               {s.MigrateDateColumn, []string{"domain_id", "hash"}},
+		"basic_joins":       {s.MigrateJoins, []string{"domain_id", "hash"}},       // Done implementation
+		"words_suggestions": {s.MigrateWords, []string{"domain_id", "hash"}},       // Done implementation
+		"credentials":       {s.MigrateCreds, []string{"domain_id", "hash"}},       // Done implementation
+		"inactive":          {s.MigrateInactive, []string{"domain_id", "hash"}},    // Done implementation
+		"metadata":          {s.MigrateMetadata, []string{"domain_id", "hash"}},    // Done implementation
+		"synonyms":          {s.MigrateSynonyms, []string{"domain_id", "hash"}},    // Done implementation
+		"hierarchy":         {s.MigrateHierarchy, []string{"domain_id", "hash"}},   // Done implementation
+		"shortcuts":         {s.MigrateShortCuts, []string{"domain_id", "hash"}},   // Done implementation
+		"aDD":               {s.MigrateDateColumn, []string{"domain_id", "hash"}},  // Done implementation
 		"aDF":               {s.MigrateDateKeyword, []string{"domain_id", "hash"}}, // Done implementation
 		// "sample":            {processSample, []string{"domain_id", "main_dict", "redis"}},
 	}
@@ -86,7 +93,6 @@ func (s *Storage) Migrate(data map[string]interface{}) (map[string]interface{}, 
 	result := make(map[string]interface{})
 
 	var mu sync.Mutex
-	var wg sync.WaitGroup
 
 	startTime := time.Now()
 	for key, fCall := range mappings {
@@ -109,7 +115,6 @@ func (s *Storage) Migrate(data map[string]interface{}) (map[string]interface{}, 
 			}
 		}(key, fCall)
 	}
-	wg.Wait()
 	elapsedTime := time.Since(startTime)
 	log.Printf("\tComplete metadata fetch in %v\n", elapsedTime)
 	return result, nil

@@ -102,12 +102,11 @@ func (s *Storage) GetKeywordSynonyms() (interface{}, error) {
 						AND asn.word_type = ?`,
 		1, 1, 1, "keyword")
 
-	defer rows.Close()
 	if err != nil {
 		log.Println("Error executing query:", err)
 		return nil, err
 	}
-
+	defer rows.Close()
 	keywordSynonyms, err := GetFromRows(rows)
 	if err != nil {
 		return nil, err

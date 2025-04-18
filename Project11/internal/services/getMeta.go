@@ -12,7 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func (s *Storage) GetMetadata(getMetadata map[string]interface{}, client *redis.Client) (map[string]interface{}, error) {
+func (s *Storage) GetMetadata(getMetadata map[string]interface{}) (map[string]interface{}, error) {
 	results := make(map[string]interface{})
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -41,7 +41,7 @@ func (s *Storage) GetMetadata(getMetadata map[string]interface{}, client *redis.
 
 		go func(key string) {
 			defer wg.Done()
-			value, err := fetchMetadataValue(key, domainIDStr, userID, client, ctx, s)
+			value, err := fetchMetadataValue(key, domainIDStr, userID, s.Client, ctx, s)
 			if err != nil {
 				log.Printf("Error processing key %s: %v", key, err)
 			}
@@ -173,17 +173,21 @@ func getSynonyms(domainID string, client *redis.Client, ctx context.Context, stx
 
 	userSynonyms, err := client.HGet(ctx, domainID, "synonyms").Result()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving user synonyms: %v", err)
+		log.Println("User Synonym not found on redis %w", err)
 	}
 
 	var synonyms map[string]interface{}
 	if err := json.Unmarshal([]byte(userSynonyms), &synonyms); err != nil {
-		return nil, fmt.Errorf("error unmarshalling user synonyms: %v", err)
+		log.Println("User unmarshal user sysnonym not found on redis %w", err)
 	}
 
 	if userMap, ok := sysGlobal["user"].(map[string]interface{}); ok {
-		for k, v := range synonyms["user"].(map[string]interface{}) {
-			userMap[k] = v
+		if userSynonymMap, ok := synonyms["user"].(map[string]interface{}); ok {
+			for k, v := range userSynonymMap {
+				userMap[k] = v
+			}
+		} else {
+			log.Println("Error: 'user' key in synonyms is not a map[string]interface{}")
 		}
 	} else {
 		sysGlobal["user"] = synonyms["user"]

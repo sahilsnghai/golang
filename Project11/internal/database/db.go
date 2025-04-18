@@ -1,12 +1,14 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/sahilsnghai/golang/Project11/internal/cache"
 	"github.com/sahilsnghai/golang/Project11/internal/services"
 	"github.com/sahilsnghai/golang/Project11/internal/types"
 )
@@ -31,9 +33,9 @@ func NewDatabaseStore(database types.DatabaseConfig, parameters map[string]inter
 		return nil, fmt.Errorf("failed to ping database: %v", err)
 	}
 
-	db.SetMaxIdleConns(10)
-	db.SetMaxOpenConns(10)
-	db.SetConnMaxLifetime(3 * time.Minute)
+	db.SetMaxIdleConns(40)
+	db.SetMaxOpenConns(1000)
+	db.SetConnMaxLifetime(10 * time.Minute)
 
 	// db2, err := gorm.Open(mysql.Open(connStr), &gorm.Config{})
 	// if err != nil {
@@ -49,6 +51,16 @@ func NewDatabaseStore(database types.DatabaseConfig, parameters map[string]inter
 	// sqlDB.SetMaxOpenConns(100)
 	// sqlDB.SetConnMaxLifetime(time.Minute * 5)
 
+	client := cache.RedisInstance(parameters)
+
 	log.Println("Database connected successfully")
-	return &services.Storage{Db: db, Parameters: parameters, Db2: nil, Client: nil, Ctx: nil}, nil
+
+	return &services.Storage{
+		Db:         db,
+		Parameters: parameters,
+		Client:     client,
+		Ctx:        context.Background(),
+		Headers:    nil,
+	}, nil
+
 }

@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	config, err := utils.GetConfig()
 	if err != nil {
@@ -21,26 +22,10 @@ func main() {
 		log.Fatalf("unable to connect to database: %s", err.Error())
 		return
 	}
+	defer store.Client.Close()
 
 	listenAddr := ":8080"
 
 	s := server.NewAPIServer(listenAddr, store, *config)
-	// fmt.Printf("\nconfig parameters %+v \n", config)
-	// "metadata", "aDD", "aDF", "inactive",
 	s.Run()
-	// req := interface{}{"domainId": 27074, "Keys": []string{"aDD", "aDF", "inactive", "shortcuts"}, UserId: 10910}
-	// req := map[string]interface{}{
-	// 	"domainId": float64(27074),
-	// 	"keys":     []interface{}{"metadata", "aDD"},
-	// }
-	// redis := RedisInstance(s.config.Parameters)
-	// defer redis.Close()
-	// metadata, err := s.store.GetMetadata(req, redis)
-	// if err != nil {
-	// 	log.Fatalf("unable to connect to database: %s", err.Error())
-	// 	return
-	// }
-
-	// log.Println(redis.Ping(ctx))
-	// fmt.Printf("metadata : %+v\n", metadata)
 }

@@ -48,10 +48,15 @@ func (s *Storage) MigrateWords(data map[string]interface{}) (any, error) {
 	}
 
 	_metadata, err := GetFromRows(rows_metadata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrive rows for metadata: %w", err)
+	}
+
 	s.Publish(fmt.Sprintf("%0.f", data["domainId"]),
 		fmt.Sprintf("%0.f<<-->>words<<-->>metadata", data["domainId"]),
 		_metadata,
 	)
+
 	log.Println("published", fmt.Sprintf("%0.f<<-->>words<<-->>metadata", data["domainId"]))
 
 	filterLimit := s.calculateFilterLimit()
@@ -88,6 +93,9 @@ func (s *Storage) MigrateWords(data map[string]interface{}) (any, error) {
 	}
 
 	_filters, err := GetFromRows(rows_filters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrive rows for filters: %w", err)
+	}
 	s.Publish(fmt.Sprintf("%0.f", data["domainId"]),
 		fmt.Sprintf("%0.f<<-->>words<<-->>filters", data["domainId"]),
 		_filters,
@@ -105,11 +113,12 @@ func (s *Storage) MigrateWords(data map[string]interface{}) (any, error) {
 
 		wordName := strings.ToUpper(word)
 
-		if _, exists := words[wordName]; exists {
-			words[wordName] = append(words[wordName], item)
-		} else {
-			words[wordName] = []map[string]interface{}{item}
-		}
+		// if _, exists := words[wordName]; exists {
+		// 	words[wordName] = append(words[wordName], item)
+		// } else {
+		// 	words[wordName] = []map[string]interface{}{item}
+		// }
+		words[wordName] = append(words[wordName], item)
 	}
 
 	return words, nil

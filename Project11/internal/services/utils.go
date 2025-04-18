@@ -1,26 +1,29 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"maps"
 	"math"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
+	"github.com/valyala/fasthttp"
 )
 
 type Storage struct {
 	Db         *sql.DB
 	Parameters map[string]interface{}
-	Db2        *gorm.DB
 	Client     *redis.Client
 	Ctx        context.Context
+	Headers    map[string]string
 }
 
 func (s *Storage) QueryWithTiming(query string, args ...interface{}) (*sql.Rows, error) {
@@ -161,4 +164,57 @@ func scanRows(rows *sql.Rows) (map[string]interface{}, error) {
 	}
 
 	return result, nil
+}
+
+func (s *Storage) UpdateReqCtx(ctx *fasthttp.RequestCtx) {
+	if s.Headers == nil {
+		s.Headers = make(map[string]string)
+	}
+	ctx.Request.Header.VisitAll(func(key, value []byte) {
+		s.Headers[string(key)] = string(value)
+	})
+
+}
+
+func (s *Storage) MakeRequest(method, url string, payload map[string]interface{}, headers map[string]string) (*any, error) {
+	var jsonPayload []byte
+	var err error
+
+	if payload != nil {
+		jsonPayload, err = json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling payload: %v", err)
+		}
+	}
+
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %v", err)
+	}
+
+	maps.Copy(headers, s.Headers)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	log.Printf("All the values of req.headers %v", req.Header)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("error: received non-OK status code %d", resp.StatusCode)
+	}
+
+	var responseBody any
+	err = json.NewDecoder(resp.Body).Decode(&responseBody)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %v", err)
+	}
+
+	return &responseBody, nil
 }

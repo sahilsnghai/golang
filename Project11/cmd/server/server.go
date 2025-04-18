@@ -3,12 +3,11 @@ package server
 import (
 	"fmt"
 	"log"
-	"net/http"
 
-	"github.com/gorilla/mux"
 	"github.com/sahilsnghai/golang/Project11/cmd/handlers"
 	"github.com/sahilsnghai/golang/Project11/internal/types"
 	"github.com/sahilsnghai/golang/Project11/internal/utils"
+	"github.com/valyala/fasthttp"
 )
 
 type APIServer struct {
@@ -16,40 +15,47 @@ type APIServer struct {
 }
 
 func (s *APIServer) Run() {
-	router := mux.NewRouter()
-
-	router.HandleFunc("/get-metadata", utils.MiddleWare(s.dispatchMethod(
-		map[string]types.APIFunc{
-			"POST": s.HandleGetMetadata,
+	routes := map[string]map[string]func(ctx *fasthttp.RequestCtx){
+		"/get-metadata": {
+			"POST": utils.MiddleWare(s.HandleGetMetadata),
 		},
-	)))
-
-	router.HandleFunc("/data-migration", utils.MiddleWare(s.dispatchMethod(
-		map[string]types.APIFunc{
-			"POST": s.HandleMigration,
+		"/data-migration": {
+			"POST": utils.MiddleWare(s.HandleMigration),
 		},
-	)))
-
-	router.HandleFunc("/health", utils.MiddleWare(s.dispatchMethod(
-		map[string]types.APIFunc{
-			"GET": s.HandleHealthCheck,
+		"/health": {
+			"GET": utils.MiddleWare(s.HandleHealthCheck),
 		},
-	)))
+	}
+
+	requestHandler := func(ctx *fasthttp.RequestCtx) {
+		method := string(ctx.Method())
+
+		if handlers, exists := routes[string(ctx.Path())]; exists {
+			if __handler, methodExists := handlers[method]; methodExists {
+				s.Store.UpdateReqCtx(ctx)
+				__handler(ctx)
+
+			} else {
+				utils.WriteJson(ctx, fasthttp.StatusMethodNotAllowed, true, map[string]string{"message": fmt.Sprintf("Method %s Not Allowed", method)})
+			}
+		} else {
+			utils.WriteJson(ctx, fasthttp.StatusNotFound, true, "Route Not Found")
+		}
+	}
 
 	log.Printf("Starting Server at port: %s\n", s.ListenAddr)
-	http.ListenAndServe(s.ListenAddr, router)
+	if err := fasthttp.ListenAndServe(s.ListenAddr, requestHandler); err != nil {
+		log.Fatalf("Error starting server: %v", err)
+	}
+
 }
 
 func NewAPIServer(listenAddr string, store types.Storage, config types.Config) *APIServer {
-	return &APIServer{handlers.APIServer{ListenAddr: listenAddr, Store: store, Config: config}}
-}
-
-func (s *APIServer) dispatchMethod(methods map[string]types.APIFunc) types.APIFunc {
-	return func(w http.ResponseWriter, r *http.Request) error {
-		log.Println("Redirecting to methods")
-		if handler, ok := methods[r.Method]; ok {
-			return handler(w, r)
-		}
-		return utils.WriteJson(w, http.StatusMethodNotAllowed, true, fmt.Sprint("Method Not Allowed: ", r.Method))
-	}
+	return &APIServer{
+		handlers.APIServer{
+			ListenAddr: listenAddr,
+			Store:      store,
+			Config:     config,
+			Ctx:        nil,
+		}}
 }

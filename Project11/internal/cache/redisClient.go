@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -15,7 +16,6 @@ type RedisOps struct {
 	Db       string `json:"db"`
 }
 
-// Function to create a Redis client
 func RedisInstance(redisConfig map[string]interface{}) *redis.Client {
 
 	redisMap := redisConfig["redis"].(map[string]interface{})
@@ -25,14 +25,24 @@ func RedisInstance(redisConfig map[string]interface{}) *redis.Client {
 	if !ok {
 		log.Printf("password not found %s\n", password)
 	}
-	// log.Printf("%s:%v\n", redisMap["host"], redisMap["port"])
-
+	log.Println("Setting up redis ")
 	client := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%v", redisMap["host"], redisMap["port"]),
-		Password: password,
+		Addr:         fmt.Sprintf("%s:%v", redisMap["host"], redisMap["port"]),
+		Password:     password,
+		DB:           0,
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		PoolTimeout:  5 * time.Second,
+		MinIdleConns: 50,
+		MaxIdleConns: 200,
 	})
 
-	log.Println(client.Ping(context.Background()))
+	if pong, err := client.Ping(context.Background()).Result(); err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	} else {
+		log.Printf("Redis Ping Response: %s", pong)
+	}
 
 	return client
 

@@ -47,8 +47,8 @@ func (s *Storage) MigrateDateColumn(data map[string]interface{}) (any, error) {
 		if !ok {
 			return nil, fmt.Errorf("unable to extract sch_metadata_id")
 		}
-		sqlClearDefaultDate := `UPDATE sch_column_date_format SET is_default_date = 0 WHERE sch_schema_id = $1`
 
+		sqlClearDefaultDate := `UPDATE sch_column_date_format SET is_default_date = 0 WHERE sch_schema_id = ?`
 		_, err = s.Db.Exec(sqlClearDefaultDate, data["domainId"])
 		if err != nil {
 			log.Fatal("Error executing update:", err)
@@ -83,6 +83,7 @@ func (s *Storage) MigrateDateColumn(data map[string]interface{}) (any, error) {
 			return nil, fmt.Errorf("error processing re-fetched query results or no rows found")
 		}
 	}
+	go s.hPublish(fmt.Sprintf("%0.f", data["domainId"]), "aDD", _addRow[0])
 
 	return _addRow[0], nil
 }
